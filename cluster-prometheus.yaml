@@ -1,0 +1,94 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: prometheus
+  region: us-east-1
+  version: "1.30"
+  tags:
+    # Add more cloud tags if needed for billing
+    environment: managednodes-quickstarts
+
+# The IAM section is for managing IAM roles and service accounts for your cluster.
+iam:
+  withOIDC: true
+  serviceAccounts:
+  - metadata:
+  # Service account used by Container Insights. (See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-prerequisites.html)  
+      name: cloudwatch-agent
+      namespace: amazon-cloudwatch
+      labels: {aws-usage: "container-insights"}
+    attachPolicyARNs:
+    - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"    
+  - metadata:
+      # Service account used by the AWS Load Balancer Controller.
+      name: aws-load-balancer-controller
+      namespace: kube-system
+    wellKnownPolicies:
+      awsLoadBalancerController: true    
+  - metadata:
+  # Service account used by Amazon EFS CSI driver. (See https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html)
+      name: efs-csi-controller-sa
+      namespace: kube-system
+    wellKnownPolicies:
+      efsCSIController: true
+  - metadata:
+  # Service account used by External DNS. (See https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.5/guide/integrations/external_dns/)
+      name: external-dns
+      namespace: kube-system
+    wellKnownPolicies:
+      externalDNS: true
+  - metadata:
+  # Service account used by Certificate Manager. (See https://cert-manager.io/docs/installation/)
+      name: cert-manager
+      namespace: cert-manager
+    wellKnownPolicies:
+      certManager: true   
+  - metadata:
+  # Service account used by Cluster Auto-scaler. (See https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/CA_with_AWS_IAM_OIDC.md)
+      name: cluster-autoscaler
+      namespace: kube-system
+      labels: {aws-usage: "autoscaling-worker-nodes"}
+    wellKnownPolicies:
+      autoScaler: true
+
+managedNodeGroups:
+  - name: prometheus-ng
+    instanceType: t3.medium
+    minSize: 2
+    desiredCapacity: 3
+    maxSize: 5
+    # launch nodegroup in private subnets
+    privateNetworking: true
+    volumeSize: 100
+    volumeType: gp3
+    # Encrypt Worker Nodes Amazon EBS Volumes by default
+    volumeEncrypted: true
+    labels: 
+      node-class: "production-workload" 
+      role: "worker"   
+    tags:
+      nodegroup-role: worker
+      env: prod     
+      # EC2 tags required for cluster-autoscaler auto-discovery - these tags are automatically applied to a managed nodegroup autoscaling group
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/managednodes-quickstart: "owned"      
+
+addons:
+  - name: vpc-cni # no version is specified so it deploys the default version
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+  - name: coredns
+    version: latest # auto discovers the latest available
+  - name: kube-proxy
+    version: latest
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:      # add IAM and service account
+      ebsCSIController: true
+
+cloudWatch:
+ clusterLogging:
+   enableTypes: ["*"]
+    # Sets the number of days to retain the logs for (see [CloudWatch docs](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutRetentionPolicy.html#API_PutRetentionPolicy_RequestSyntax)).
+    # By default, log data is stored in CloudWatch Logs indefinitely.
+   logRetentionInDays: 60
