@@ -30,7 +30,7 @@ Run the following commands to confirm cluster is created:
 __This confirms the cluster is created.__
 
 The next step is to install Load Balancer controller (load-balancer-controller) to the EKS Cluster. For that we need to create some environment variables
-1. ```kubectl config current-context`````` --> You should see something similar to `<profile>@prometheus.region.eksctl.io`. If you do not see this, please create a namespace using ```kubectl create namespace <name>```
+1. ```kubectl config current-context``` --> You should see something similar to `<profile>@prometheus.region.eksctl.io`. If you do not see this, please create a namespace using ```kubectl create namespace <name>```
 2. ```export CLUSTER_NAME=$(aws eks describe-cluster --region <region> --name prometheus --profile <profile-name-optional> --query "cluster.name" --output text)```
 3. ```export CLUSTER_REGION=$(aws eks describe-cluster --name ${CLUSTER_NAME} --profile <profile-name-optional> --query "cluster.arn" --output text | cut -d: -f4)```
 4. ```export CLUSTER_VPC=$(aws eks describe-cluster --name ${CLUSTER_NAME} --region ${CLUSTER_REGION} --profile <profile-name-optional> --query "cluster.resourcesVpcConfig.vpcId" --output text)```
